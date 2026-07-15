@@ -1,4 +1,4 @@
-import askAI from "../services/gemini.js";
+import askAI from "../services/cohere.js";
 
 export async function chat(req, res) {
   try {

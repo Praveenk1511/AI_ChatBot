@@ -8,7 +8,7 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-const model = "gemini-2.0-flash";
+const model = "gemini-2.0-flash-lite";
 console.log("Using model:", model);
 
 export default async function askAI(prompt) {
