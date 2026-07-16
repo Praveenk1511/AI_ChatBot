@@ -12,7 +12,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: "https://ai-chatbot-2-ym7x.onrender.com",
+  origin: "http://localhost:5173",
   credentials: true,
 }));
 app.use(express.json());
