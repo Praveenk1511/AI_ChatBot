@@ -11,10 +11,14 @@ dotenv.config();
 const app = express();
 
 // Middleware
+const cors = require("cors");
+
 app.use(cors({
-  origin: "http://localhost:5173",
-  origin: "https://ai-chat-bot-chi-taupe.vercel.app",
-  credentials: true,
+  origin: [
+    "http://localhost:5173",
+    "https://your-frontend.vercel.app"
+  ],
+  credentials: true
 }));
 app.use(express.json());
 app.use(cookieParser());
