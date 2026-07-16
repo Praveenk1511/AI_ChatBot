@@ -30,13 +30,17 @@ body {
 }
 
 #root {
+  height: 100dvh;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* Layout */
 .chat-wrapper {
   display: flex;
+  height: 100dvh;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
 }
