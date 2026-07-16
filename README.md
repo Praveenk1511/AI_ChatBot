@@ -1,36 +1,57 @@
-# AI ChatBot with Memory
+# AI ChatBot — Full Stack with Auth & Memory
 
-A full-stack AI chatbot with conversation memory — it remembers your name, skills, city, and preferences throughout the session. Built with React and Node.js, powered by Cohere's Command A model.
+A full-stack AI chatbot application with user authentication, conversation memory, and persistent chat history. Built with React, Node.js, MongoDB, and powered by Cohere AI.
 
-![Tech Stack](https://img.shields.io/badge/React-19-blue) ![Tech Stack](https://img.shields.io/badge/Node.js-Express-green) ![Tech Stack](https://img.shields.io/badge/AI-Cohere-purple) ![Feature](https://img.shields.io/badge/Feature-Memory-orange)
+![React](https://img.shields.io/badge/React-19-blue) ![Node.js](https://img.shields.io/badge/Node.js-Express_5-green) ![MongoDB](https://img.shields.io/badge/Database-MongoDB-darkgreen) ![AI](https://img.shields.io/badge/AI-Cohere-purple) ![Auth](https://img.shields.io/badge/Auth-JWT-orange)
+
+---
 
 ## Features
 
-- **Conversation Memory** — AI remembers names, skills, city, preferences across messages
-- **Session Management** — Multiple chat sessions with history
-- **Chat History Sidebar** — View, switch, and delete past conversations
-- Real-time AI responses with Cohere's `command-a-03-2025` model
-- Modern, responsive UI with animations
-- Typing indicator with animated dots
-- Suggested prompts for quick start
-- Auto-scroll to latest messages
-- Session auto-cleanup after 1 hour of inactivity
-- Mobile-friendly design
+### Authentication
+- User registration with name, email, and password
+- Login/logout with JWT tokens stored in HTTP-only cookies
+- Protected routes — chat is only accessible to logged-in users
+- Passwords hashed with bcrypt (12 rounds)
+- Token expires after 7 days
+
+### AI Chat with Memory
+- Powered by Cohere's `command-a-03-2025` model
+- Conversation memory — AI remembers names, skills, city, preferences
+- Full chat history sent as context with each message
+- System preamble instructs AI to remember personal details
+
+### Chat Management
+- Multiple chat sessions per user
+- Chat history saved to MongoDB
+- Load, switch between, and delete past chats
+- Chat titles auto-generated from first message
+- History capped at 100 messages per chat
+
+### UI/UX
+- Modern, responsive design with sidebar
+- Mobile-friendly with slide-out sidebar (hamburger menu)
+- Animated typing indicator (bouncing dots)
+- Auto-scroll to latest message
+- Suggested quick-start prompts
+- Welcome screen with user's name
+- Online status badge and memory indicator
+- Smooth message fade-in animations
+
+---
 
 ## Tech Stack
 
-### Frontend
-- React 19
-- Vite 8
-- Axios (HTTP client)
-- CSS3 with custom properties and animations
+| Layer      | Technology                          |
+|-----------|--------------------------------------|
+| Frontend  | React 19, Vite 8, React Router, Axios |
+| Backend   | Node.js, Express 5                   |
+| Database  | MongoDB with Mongoose               |
+| AI        | Cohere AI SDK (command-a-03-2025)    |
+| Auth      | JWT, bcryptjs, cookie-parser        |
+| Styling   | Custom CSS with variables & animations |
 
-### Backend
-- Node.js with Express 5
-- Cohere AI SDK
-- In-memory session store
-- CORS enabled
-- Environment variable management with dotenv
+---
 
 ## Project Structure
 
@@ -39,32 +60,47 @@ chatBot/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   └── ChatBox.jsx
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   ├── index.css
-│   │   └── main.jsx
+│   │   │   └── ChatBox.jsx          # Main chat interface
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx       # Auth state management
+│   │   ├── pages/
+│   │   │   ├── Login.jsx             # Login page
+│   │   │   └── Register.jsx          # Registration page
+│   │   ├── App.jsx                   # Routing & protected routes
+│   │   ├── App.css                   # All styles
+│   │   ├── index.css                 # Global reset & fonts
+│   │   └── main.jsx                  # React entry point
 │   ├── package.json
 │   └── vite.config.js
 ├── backend/
 │   ├── controllers/
-│   │   └── chatController.js
+│   │   ├── authController.js         # Register, login, logout, getMe
+│   │   └── chatController.js         # Chat CRUD operations
+│   ├── middleware/
+│   │   └── auth.js                   # JWT verification middleware
+│   ├── models/
+│   │   ├── User.js                   # User schema (name, email, password)
+│   │   └── Chat.js                   # Chat schema (messages, user ref)
 │   ├── routes/
-│   │   └── chat.js
+│   │   ├── auth.js                   # Auth endpoints
+│   │   └── chat.js                   # Chat endpoints (protected)
 │   ├── services/
-│   │   └── cohere.js
-│   ├── server.js
-│   ├── .env
+│   │   └── cohere.js                 # Cohere AI integration
+│   ├── server.js                     # Express app + MongoDB connection
+│   ├── .env                          # Environment variables
 │   └── package.json
 └── README.md
 ```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- Cohere API key ([Get one here](https://dashboard.cohere.com))
+- **Node.js** v18 or higher
+- **MongoDB** running locally or a MongoDB Atlas URI
+- **Cohere API key** — [Get one free here](https://dashboard.cohere.com)
 
 ### Installation
 
@@ -82,9 +118,11 @@ chatBot/
 
 3. **Configure environment variables**
 
-   Create a `.env` file in the `backend/` directory:
+   Create a `.env` file in `backend/`:
    ```env
-   COHERE_API_KEY=your_cohere_api_key_here
+   COHERE_API_KEY=your_cohere_api_key
+   MONGO_URI=mongodb://localhost:27017/chatbot
+   JWT_SECRET=your_secret_key_here
    PORT=8000
    ```
 
@@ -96,81 +134,170 @@ chatBot/
 
 ### Running the App
 
-1. **Start the backend server**
+1. **Make sure MongoDB is running**
+   ```bash
+   mongod
+   ```
+
+2. **Start the backend**
    ```bash
    cd backend
    node server.js
    ```
-   Server runs on `http://localhost:8000`
+   Output: `Connected to MongoDB` → `Server running on port 8000`
 
-2. **Start the frontend dev server**
+3. **Start the frontend**
    ```bash
    cd frontend
    npm run dev
    ```
    Frontend runs on `http://localhost:5173`
 
-3. Open `http://localhost:5173` in your browser.
+4. Open `http://localhost:5173` in your browser.
 
-## How Memory Works
+---
 
-The chatbot maintains conversation context per session:
+## User Flow
 
-1. Each chat gets a unique session ID
-2. All messages (user + AI) are stored in memory on the server
-3. The full conversation history is sent with each new message
-4. The AI uses a system preamble instructing it to remember personal details
-5. History is capped at 50 message pairs per session
-6. Sessions auto-expire after 1 hour of inactivity
+1. **Register** — Create an account at `/register`
+2. **Login** — Sign in at `/login`
+3. **Chat** — Start a conversation, AI remembers context within the session
+4. **History** — Click past chats in the sidebar to reload them
+5. **New Chat** — Start fresh with the "New Chat" button
+6. **Logout** — Click logout in the sidebar footer
 
-**Try it:**
-- Tell the AI: "My name is Alex and I'm a React developer from New York"
-- Then ask: "What's my name?" or "What city am I from?"
-- The AI will remember and respond with your details
+---
 
 ## API Endpoints
 
-| Method | Endpoint                      | Description                |
-|--------|-------------------------------|----------------------------|
-| GET    | `/`                           | Health check               |
-| POST   | `/api/chat`                   | Send message to AI         |
-| GET    | `/api/chat/sessions`          | List all active sessions   |
-| GET    | `/api/chat/history/:sessionId`| Get history for a session  |
-| DELETE | `/api/chat/sessions/:sessionId`| Delete a session          |
+### Auth Routes (`/api/auth`)
 
-### POST /api/chat
+| Method | Endpoint    | Description              | Auth Required |
+|--------|------------|--------------------------|:-------------:|
+| POST   | `/register`| Create a new account     | No            |
+| POST   | `/login`   | Login and get JWT        | No            |
+| POST   | `/logout`  | Clear JWT cookie         | No            |
+| GET    | `/me`      | Get current user info    | Yes           |
 
-**Request Body:**
-```json
-{
-  "message": "My name is Alex",
-  "sessionId": "session_123"
-}
+### Chat Routes (`/api/chat`) — All require authentication
+
+| Method | Endpoint      | Description                 |
+|--------|--------------|------------------------------|
+| POST   | `/`          | Send message (create/continue chat) |
+| GET    | `/list`      | Get all chats for the user   |
+| GET    | `/:chatId`   | Get a specific chat with messages |
+| DELETE | `/:chatId`   | Delete a chat                |
+
+### Request/Response Examples
+
+**Register:**
+```bash
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alex","email":"alex@example.com","password":"123456"}'
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alex@example.com","password":"123456"}'
+```
+
+**Send Message:**
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Cookie: jwt=<your_token>" \
+  -d '{"message":"Hello AI","chatId":null}'
 ```
 
 **Response:**
 ```json
 {
-  "reply": "Nice to meet you, Alex! How can I help you today?",
-  "sessionId": "session_123"
+  "reply": "Hello Alex! How can I help you today?",
+  "chatId": "669e215f07339c70862190cf"
 }
 ```
 
-### GET /api/chat/sessions
+---
 
-**Response:**
-```json
+## Database Schemas
+
+### User
+```javascript
 {
-  "sessions": [
-    {
-      "id": "session_123",
-      "preview": "My name is Alex",
-      "messageCount": 4,
-      "lastActive": 1721145600000
-    }
-  ]
+  name: String,        // required
+  email: String,       // required, unique, lowercase
+  password: String,    // required, min 6 chars, hashed
+  createdAt: Date,
+  updatedAt: Date
 }
 ```
+
+### Chat
+```javascript
+{
+  user: ObjectId,      // ref to User
+  title: String,       // auto-generated from first message
+  messages: [{
+    role: "USER" | "CHATBOT",
+    message: String,
+    timestamp: Date
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+---
+
+## How Memory Works
+
+1. User sends a message
+2. Server fetches the full chat history from MongoDB
+3. History is sent to Cohere along with the new message
+4. A system preamble tells the AI to remember personal details (name, skills, city, etc.)
+5. AI responds with awareness of the full conversation context
+6. Both user message and AI response are saved to MongoDB
+
+**Try it:** Tell the AI your name and city, then in a later message ask "What's my name?" — it will remember.
+
+---
+
+## Environment Variables
+
+| Variable        | Description                         | Example                              |
+|----------------|-------------------------------------|--------------------------------------|
+| `COHERE_API_KEY`| Cohere API key                     | `lggZ9dTy...`                        |
+| `MONGO_URI`    | MongoDB connection string           | `mongodb://localhost:27017/chatbot`   |
+| `JWT_SECRET`   | Secret for signing JWT tokens       | `my_super_secret_key`                |
+| `PORT`         | Backend server port                 | `8000`                               |
+
+---
+
+## Security Notes
+
+- Passwords are hashed with bcrypt (12 rounds) — never stored in plain text
+- JWT stored in HTTP-only cookies — not accessible via JavaScript (XSS protection)
+- All chat routes are protected by auth middleware
+- CORS is configured to only allow the frontend origin
+- Chat ownership is verified on every request (users can't access others' chats)
+
+---
+
+## Future Improvements
+
+- [ ] Password reset / forgot password
+- [ ] User profile editing
+- [ ] Chat export (download as text/PDF)
+- [ ] Dark mode toggle
+- [ ] File/image sharing in chat
+- [ ] Streaming AI responses (real-time token output)
+- [ ] Rate limiting on API endpoints
+- [ ] Persistent database sessions (Redis)
+
+---
 
 ## License
 
