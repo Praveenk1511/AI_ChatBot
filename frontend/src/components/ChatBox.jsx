@@ -1,10 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 
+const API_BASE = "http://localhost:8000/api/chat";
+
+function generateSessionId() {
+  return "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
+}
+
 export default function ChatBox() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState(generateSessionId);
+  const [sessions, setSessions] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -16,6 +24,57 @@ export default function ChatBox() {
     scrollToBottom();
   }, [messages, loading]);
 
+  // Fetch sessions list
+  const fetchSessions = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/sessions`);
+      setSessions(res.data.sessions);
+    } catch (err) {
+      console.error("Failed to fetch sessions", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  // Load a previous session
+  const loadSession = async (id) => {
+    try {
+      const res = await axios.get(`${API_BASE}/history/${id}`);
+      const history = res.data.history;
+      const loaded = history.map((m) => ({
+        sender: m.role === "USER" ? "user" : "ai",
+        text: m.message,
+      }));
+      setMessages(loaded);
+      setSessionId(id);
+    } catch (err) {
+      console.error("Failed to load session", err);
+    }
+  };
+
+  // Start a new chat
+  const startNewChat = () => {
+    setMessages([]);
+    setSessionId(generateSessionId());
+    fetchSessions();
+  };
+
+  // Delete a session
+  const deleteSession = async (id, e) => {
+    e.stopPropagation();
+    try {
+      await axios.delete(`${API_BASE}/sessions/${id}`);
+      if (id === sessionId) {
+        startNewChat();
+      }
+      fetchSessions();
+    } catch (err) {
+      console.error("Failed to delete session", err);
+    }
+  };
+
   const sendMessage = async () => {
     if (!message.trim() || loading) return;
 
@@ -25,10 +84,12 @@ export default function ChatBox() {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:1234/api/chat", {
+      const res = await axios.post(API_BASE, {
         message: userMessage,
+        sessionId: sessionId,
       });
       setMessages((prev) => [...prev, { sender: "ai", text: res.data.reply }]);
+      fetchSessions();
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -52,14 +113,54 @@ export default function ChatBox() {
             <span>ChatBot AI</span>
           </div>
         </div>
-        <button className="new-chat-btn" onClick={() => setMessages([])}>
+
+        <button className="new-chat-btn" onClick={startNewChat}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           New Chat
         </button>
+
+        {/* Chat History */}
+        <div className="chat-history">
+          <h3 className="history-title">Recent Chats</h3>
+          <div className="history-list">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`history-item ${s.id === sessionId ? "active" : ""}`}
+                onClick={() => loadSession(s.id)}
+              >
+                <div className="history-item-content">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span className="history-preview">{s.preview}</span>
+                </div>
+                <button
+                  className="delete-btn"
+                  onClick={(e) => deleteSession(s.id, e)}
+                  aria-label="Delete chat"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="sidebar-footer">
+          <div className="memory-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            Memory Enabled
+          </div>
           <p>Powered by Cohere AI</p>
         </div>
       </aside>
@@ -68,10 +169,19 @@ export default function ChatBox() {
       <main className="chat-main">
         <header className="chat-header">
           <h1>AI Assistant</h1>
-          <span className="status-badge">
-            <span className="status-dot"></span>
-            Online
-          </span>
+          <div className="header-badges">
+            <span className="memory-indicator" title="The AI remembers your conversation context">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Memory Active
+            </span>
+            <span className="status-badge">
+              <span className="status-dot"></span>
+              Online
+            </span>
+          </div>
         </header>
 
         <div className="messages-container">
@@ -83,16 +193,19 @@ export default function ChatBox() {
                 </svg>
               </div>
               <h2>How can I help you today?</h2>
-              <p>Ask me anything — I'm here to help with questions, ideas, and more.</p>
+              <p>I can remember your name, skills, city, and preferences throughout our conversation.</p>
               <div className="suggestions">
-                <button onClick={() => { setMessage("Explain how the internet works"); inputRef.current?.focus(); }}>
-                  💡 Explain how the internet works
+                <button onClick={() => { setMessage("My name is ... and I'm a developer from ..."); inputRef.current?.focus(); }}>
+                  👋 Introduce yourself
                 </button>
-                <button onClick={() => { setMessage("Write a short poem about coding"); inputRef.current?.focus(); }}>
-                  ✍️ Write a short poem about coding
+                <button onClick={() => { setMessage("What do you remember about me?"); inputRef.current?.focus(); }}>
+                  🧠 Test my memory
                 </button>
-                <button onClick={() => { setMessage("Give me 5 tips for productivity"); inputRef.current?.focus(); }}>
-                  🚀 Give me 5 tips for productivity
+                <button onClick={() => { setMessage("Tell me a fun fact about programming"); inputRef.current?.focus(); }}>
+                  💡 Fun programming fact
+                </button>
+                <button onClick={() => { setMessage("Help me brainstorm project ideas"); inputRef.current?.focus(); }}>
+                  🚀 Brainstorm ideas
                 </button>
               </div>
             </div>
@@ -145,7 +258,7 @@ export default function ChatBox() {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Type your message..."
+              placeholder="Type your message... (I'll remember what you tell me!)"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
@@ -163,7 +276,7 @@ export default function ChatBox() {
               </svg>
             </button>
           </div>
-          <p className="input-hint">Press Enter to send</p>
+          <p className="input-hint">Press Enter to send · AI remembers your conversation</p>
         </div>
       </main>
     </div>
