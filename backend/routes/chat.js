@@ -1,16 +1,15 @@
 import express from "express";
-import {
-  chat,
-  getHistory,
-  listSessions,
-  deleteSession,
-} from "../controllers/chatController.js";
+import { chat, listChats, getChat, deleteChat } from "../controllers/chatController.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// All chat routes require authentication
+router.use(protect);
+
 router.post("/", chat);
-router.get("/sessions", listSessions);
-router.get("/history/:sessionId", getHistory);
-router.delete("/sessions/:sessionId", deleteSession);
+router.get("/list", listChats);
+router.get("/:chatId", getChat);
+router.delete("/:chatId", deleteChat);
 
 export default router;

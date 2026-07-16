@@ -1,21 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE = "http://localhost:8000/api/chat";
-
-function generateSessionId() {
-  return "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
-}
 
 export default function ChatBox() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sessionId, setSessionId] = useState(generateSessionId);
-  const [sessions, setSessions] = useState([]);
+  const [chatId, setChatId] = useState(null);
+  const [chats, setChats] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const { user, logout } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -25,55 +23,55 @@ export default function ChatBox() {
     scrollToBottom();
   }, [messages, loading]);
 
-  // Fetch sessions list
-  const fetchSessions = async () => {
+  // Fetch chats list
+  const fetchChats = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/sessions`);
-      setSessions(res.data.sessions);
+      const res = await axios.get(`${API_BASE}/list`);
+      setChats(res.data.chats);
     } catch (err) {
-      console.error("Failed to fetch sessions", err);
+      console.error("Failed to fetch chats", err);
     }
   };
 
   useEffect(() => {
-    fetchSessions();
+    fetchChats();
   }, []);
 
-  // Load a previous session
-  const loadSession = async (id) => {
+  // Load a previous chat
+  const loadChat = async (id) => {
     try {
-      const res = await axios.get(`${API_BASE}/history/${id}`);
-      const history = res.data.history;
-      const loaded = history.map((m) => ({
+      const res = await axios.get(`${API_BASE}/${id}`);
+      const chatData = res.data.chat;
+      const loaded = chatData.messages.map((m) => ({
         sender: m.role === "USER" ? "user" : "ai",
         text: m.message,
       }));
       setMessages(loaded);
-      setSessionId(id);
+      setChatId(id);
       setSidebarOpen(false);
     } catch (err) {
-      console.error("Failed to load session", err);
+      console.error("Failed to load chat", err);
     }
   };
 
   // Start a new chat
   const startNewChat = () => {
     setMessages([]);
-    setSessionId(generateSessionId());
-    fetchSessions();
+    setChatId(null);
+    fetchChats();
   };
 
-  // Delete a session
-  const deleteSession = async (id, e) => {
+  // Delete a chat
+  const deleteChat = async (id, e) => {
     e.stopPropagation();
     try {
-      await axios.delete(`${API_BASE}/sessions/${id}`);
-      if (id === sessionId) {
+      await axios.delete(`${API_BASE}/${id}`);
+      if (id === chatId) {
         startNewChat();
       }
-      fetchSessions();
+      fetchChats();
     } catch (err) {
-      console.error("Failed to delete session", err);
+      console.error("Failed to delete chat", err);
     }
   };
 
@@ -88,10 +86,11 @@ export default function ChatBox() {
     try {
       const res = await axios.post(API_BASE, {
         message: userMessage,
-        sessionId: sessionId,
+        chatId: chatId,
       });
       setMessages((prev) => [...prev, { sender: "ai", text: res.data.reply }]);
-      fetchSessions();
+      setChatId(res.data.chatId);
+      fetchChats();
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -115,7 +114,7 @@ export default function ChatBox() {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            <span>ChatBot AI</span>
+            <span>AI ChatBot</span>
           </div>
         </div>
 
@@ -131,21 +130,21 @@ export default function ChatBox() {
         <div className="chat-history">
           <h3 className="history-title">Recent Chats</h3>
           <div className="history-list">
-            {sessions.map((s) => (
+            {chats.map((c) => (
               <div
-                key={s.id}
-                className={`history-item ${s.id === sessionId ? "active" : ""}`}
-                onClick={() => loadSession(s.id)}
+                key={c.id}
+                className={`history-item ${c.id === chatId ? "active" : ""}`}
+                onClick={() => loadChat(c.id)}
               >
                 <div className="history-item-content">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
-                  <span className="history-preview">{s.preview}</span>
+                  <span className="history-preview">{c.title}</span>
                 </div>
                 <button
                   className="delete-btn"
-                  onClick={(e) => deleteSession(s.id, e)}
+                  onClick={(e) => deleteChat(c.id, e)}
                   aria-label="Delete chat"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -159,14 +158,21 @@ export default function ChatBox() {
         </div>
 
         <div className="sidebar-footer">
-          <div className="memory-badge">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z" />
-              <path d="M12 6v6l4 2" />
+          <div className="user-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
-            Memory Enabled
+            <span>{user?.name}</span>
           </div>
-          <p>Powered by Cohere AI</p>
+          <button className="logout-btn" onClick={logout}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Logout
+          </button>
         </div>
       </aside>
 
@@ -206,10 +212,10 @@ export default function ChatBox() {
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
-              <h2>How can I help you today?</h2>
-              <p>I can remember your name, skills, city, and preferences throughout our conversation.</p>
+              <h2>Hi {user?.name}! How can I help you?</h2>
+              <p>I remember your conversations. Tell me about yourself and I'll keep it in mind.</p>
               <div className="suggestions">
-                <button onClick={() => { setMessage("My name is ... and I'm a developer from ..."); inputRef.current?.focus(); }}>
+                <button onClick={() => { setMessage(`My name is ${user?.name} and I'm a developer`); inputRef.current?.focus(); }}>
                   👋 Introduce yourself
                 </button>
                 <button onClick={() => { setMessage("What do you remember about me?"); inputRef.current?.focus(); }}>

@@ -1,93 +1,115 @@
 import askAI from "../services/cohere.js";
+import Chat from "../models/Chat.js";
 
-// In-memory session store (keyed by sessionId)
-const sessions = new Map();
-
-// Clean up old sessions after 1 hour of inactivity
-const SESSION_TTL = 60 * 60 * 1000;
-
-function cleanupSessions() {
-  const now = Date.now();
-  for (const [id, session] of sessions) {
-    if (now - session.lastActive > SESSION_TTL) {
-      sessions.delete(id);
-    }
-  }
-}
-
-setInterval(cleanupSessions, 5 * 60 * 1000);
-
+// Send a message
 export async function chat(req, res) {
   try {
-    const { message, sessionId = "default" } = req.body;
+    const { message, chatId } = req.body;
+    const userId = req.user._id;
 
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    // Get or create session
-    if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, {
-        chatHistory: [],
-        lastActive: Date.now(),
+    let chatDoc;
+
+    if (chatId) {
+      // Existing chat - verify ownership
+      chatDoc = await Chat.findOne({ _id: chatId, user: userId });
+      if (!chatDoc) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+    } else {
+      // New chat - create it
+      chatDoc = await Chat.create({
+        user: userId,
+        title: message.slice(0, 50),
+        messages: [],
       });
     }
 
-    const session = sessions.get(sessionId);
-    session.lastActive = Date.now();
+    // Build chat history for AI context
+    const chatHistory = chatDoc.messages.map((m) => ({
+      role: m.role,
+      message: m.message,
+    }));
 
-    // Send message with history for context
-    const reply = await askAI(message, session.chatHistory);
+    // Get AI response
+    const reply = await askAI(message, chatHistory);
 
-    // Store this exchange in history
-    session.chatHistory.push({ role: "USER", message: message });
-    session.chatHistory.push({ role: "CHATBOT", message: reply });
+    // Save messages to DB
+    chatDoc.messages.push({ role: "USER", message: message });
+    chatDoc.messages.push({ role: "CHATBOT", message: reply });
 
-    // Keep history manageable (last 50 exchanges)
-    if (session.chatHistory.length > 100) {
-      session.chatHistory = session.chatHistory.slice(-100);
+    // Keep last 100 messages
+    if (chatDoc.messages.length > 100) {
+      chatDoc.messages = chatDoc.messages.slice(-100);
     }
 
-    res.json({ reply, sessionId });
+    await chatDoc.save();
+
+    res.json({ reply, chatId: chatDoc._id });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
   }
 }
 
-// Get chat history for a session
-export function getHistory(req, res) {
-  const { sessionId } = req.params;
-  const session = sessions.get(sessionId);
+// Get all chats for the logged-in user
+export async function listChats(req, res) {
+  try {
+    const chats = await Chat.find({ user: req.user._id })
+      .select("title createdAt updatedAt messages")
+      .sort({ updatedAt: -1 });
 
-  if (!session) {
-    return res.json({ history: [] });
+    const chatList = chats.map((c) => ({
+      id: c._id,
+      title: c.title,
+      messageCount: c.messages.length,
+      lastActive: c.updatedAt,
+    }));
+
+    res.json({ chats: chatList });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch chats" });
   }
-
-  res.json({ history: session.chatHistory });
 }
 
-// List all active sessions
-export function listSessions(req, res) {
-  const sessionList = [];
-  for (const [id, session] of sessions) {
-    const firstUserMsg = session.chatHistory.find((m) => m.role === "USER");
-    sessionList.push({
-      id,
-      preview: firstUserMsg ? firstUserMsg.message.slice(0, 50) : "New chat",
-      messageCount: session.chatHistory.length,
-      lastActive: session.lastActive,
+// Get a single chat with messages
+export async function getChat(req, res) {
+  try {
+    const chat = await Chat.findOne({
+      _id: req.params.chatId,
+      user: req.user._id,
     });
-  }
 
-  // Sort by most recent
-  sessionList.sort((a, b) => b.lastActive - a.lastActive);
-  res.json({ sessions: sessionList });
+    if (!chat) {
+      return res.status(404).json({ error: "Chat not found" });
+    }
+
+    res.json({ chat });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch chat" });
+  }
 }
 
-// Delete a session
-export function deleteSession(req, res) {
-  const { sessionId } = req.params;
-  sessions.delete(sessionId);
-  res.json({ success: true });
+// Delete a chat
+export async function deleteChat(req, res) {
+  try {
+    const result = await Chat.findOneAndDelete({
+      _id: req.params.chatId,
+      user: req.user._id,
+    });
+
+    if (!result) {
+      return res.status(404).json({ error: "Chat not found" });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete chat" });
+  }
 }
