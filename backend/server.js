@@ -11,16 +11,23 @@ dotenv.config();
 const app = express();
 
 // Middleware
-const cors = require("cors");
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "https://ai-chat-bot-chi-taupe.vercel.app",
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
 
-/* app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://ai-chat-bot-chi-taupe.vercel.app"
-  ],
-  credentials: true
-})); */
-app.use(cors());
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 
