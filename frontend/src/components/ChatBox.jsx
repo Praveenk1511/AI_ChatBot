@@ -13,6 +13,7 @@ export default function ChatBox() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(generateSessionId);
   const [sessions, setSessions] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -49,6 +50,7 @@ export default function ChatBox() {
       }));
       setMessages(loaded);
       setSessionId(id);
+      setSidebarOpen(false);
     } catch (err) {
       console.error("Failed to load session", err);
     }
@@ -103,8 +105,11 @@ export default function ChatBox() {
 
   return (
     <div className="chat-wrapper">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <div className="logo">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -168,7 +173,16 @@ export default function ChatBox() {
       {/* Main Chat Area */}
       <main className="chat-main">
         <header className="chat-header">
-          <h1>AI Assistant</h1>
+          <div className="header-left">
+            <button className="menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <h1>AI Assistant</h1>
+          </div>
           <div className="header-badges">
             <span className="memory-indicator" title="The AI remembers your conversation context">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
