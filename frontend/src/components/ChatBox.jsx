@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 
-const API_BASE = "http://localhost:8000/api/chat";
+const API_BASE = "https://ai-chatbot-2-ym7x.onrender.com/api/chat";
 
 export default function ChatBox() {
   const [message, setMessage] = useState("");
