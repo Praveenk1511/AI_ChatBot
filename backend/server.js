@@ -13,13 +13,14 @@ const app = express();
 // Middleware
 const cors = require("cors");
 
-app.use(cors({
+/* app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://ai-chat-bot-chi-taupe.vercel.app"
   ],
   credentials: true
-}));
+})); */
+app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
